@@ -1,6 +1,6 @@
 {
   "name": "simple-sql-orm",
-  "version": "1.0.1",
+  "version": "1.0.0",
   "description": "SQL ORM",
   "main": "index.js",
   "scripts": {
