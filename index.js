@@ -120,7 +120,7 @@ class ORM {
      * 
      * @param {Object} insert 
      */
-    getInserttring(insert = {}) {
+    getInsertString(insert = {}) {
         let res = ''
         let colString = ''
         let valueString = ''
@@ -145,6 +145,25 @@ class ORM {
             valueString += ')'
         }
         res = colString + valueString
+        return res
+    }
+    /**
+     * 
+     * @param {Object} update 
+     * @returns String
+     */
+    getUpdateString(update){
+        let res = ''
+        let isFirst = true
+        for (const key in update) {
+            if (Object.hasOwnProperty.call(update, key)) {
+                const value = update[key]
+                if (isFirst) res += " SET "
+                else res += ", "
+                res += this.getColFullName(key) + " = " + "'"+String(value).replace("'", "\\'")+"'"
+                isFirst = false
+            }
+        }
         return res
     }
     /**
@@ -342,14 +361,28 @@ class ORM {
      * @returns updated row count
      */
     async insert(insert){
-
         let query = "INSERT INTO " + "`"+this.tableName+"`"
-        let inserttring = " " + this.getInserttring(insert)
-        query += inserttring
+        let insertstring = " " + this.getInsertString(insert)
+        query += insertstring
         let res = await this.sequelize.query(query, QueryTypes.INSERT);
         return {
             totalRow: res[0],
             inserted: res[1]
         }
+    }
+    /**
+     * update matching rows and return updated row count
+     * @param {Object} update {first_name : "black"}
+     * @returns Integer changedRow count
+     */
+    async update(update) {
+        let query = "UPDATE " + "`"+this.tableName+"`"
+        let updateString = this.getUpdateString(update)
+        query += updateString
+        let whereString = this.getWhereConditionString(this.#whereConditions)
+        if( whereString.trim().length ) query += " WHERE " + whereString
+        // return query
+        let res = await this.sequelize.query(query, QueryTypes.UPDATE);
+        return res[0].changedRows
     }
 }
