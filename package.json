@@ -1,6 +1,6 @@
 {
   "name": "simple-sql-orm",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "SQL ORM",
   "main": "index.js",
   "scripts": {
@@ -12,5 +12,18 @@
     "mysql2": "^3.0.1",
     "sequelize": "^6.28.0",
     "simple-libs": "^1.0.0"
+  },
+  "keywords": [
+    "SQL",
+    "MySQM",
+    "ORM",
+    "LARAVEL",
+    "query",
+    "json",
+    "automated"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/blackhorse00042/simple-sql-orm.git"
   }
 }
