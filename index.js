@@ -102,7 +102,20 @@ class ORM {
         }
         return res
     }
-
+    /**
+     * 
+     * @param {Array} selects 
+     */
+    getSelectString(selects){
+        let res = ''
+        let n = selects.length
+        for (let i = 0; i < n; i++) {
+            if( i ) res += ", "
+            const element = selects[i];
+            res += this.getColFullName(element)
+        }
+        return res
+    }
     /**
      * 
      * @param {String} str tableName.column
@@ -111,15 +124,15 @@ class ORM {
         let res = -1;
         const arr = str.split(".")
         if( arr.length == 1 ) {
-            let col = arr[0]
-            col = Lib.String.removeSpecialChars(col)
-            col = col.trim()
-            res = '`'+this.tableName+'`.`'+col+'`'
+            let col = arr[0].trim()
+            if( col != "*" ) col = '`'+Lib.String.removeSpecialChars(col).trim()+'`'
+            res = '`'+this.tableName+'`.'+col
         }
         else if( arr.length == 2 ) {
             let tbName = Lib.String.removeSpecialChars(arr[0]).trim()
-            let col = Lib.String.removeSpecialChars(arr[1]).trim()
-            res = '`'+tbName+'`.`'+col+'`'
+            let col = arr[1].trim();
+            if(col != '*') col = '`'+Lib.String.removeSpecialChars(arr[1]).trim()+'`'
+            res = '`'+tbName+'`.'+col
         }
         return res
     }
@@ -136,18 +149,18 @@ class ORM {
     
     /**
      * Select columns like "SELECT id, firstName"
-     * @param {String[]} cols Col String array
+     * @param {String[]} cols Col String array Ex. select("id", "firstName", "users.email")
      * @returns ORM
      */
 
-    select( cols = [] ) {
-        const len = cols.length
+    select() {
+        const len = arguments.length
         this.queryType = QueryTypes.SELECT
         for (let i = 0; i < len; i++) {
-            const element = cols[i];
-            let fullName = ORM.getColFullName(element)
-            if( fullName == -1 ) console.warn(`Bad Col name!`, cols)
-            else this.#selectedCols.push( fullName )
+            const element = arguments[i];
+            let fullName = this.getColFullName(element)
+            if( fullName == -1 ) console.warn(`Bad Col name!`, element)
+            else this.#selectedCols.push( element )
         }
         return this
     }
@@ -254,9 +267,15 @@ class ORM {
     }
 
     get(){
-        console.log(this.getWhereConditionString(this.#whereConditions))
+        let whereString = this.getWhereConditionString(this.#whereConditions)
+        let selectString = this.getSelectString(this.#selectedCols)
+        let query = "SELECT "
+        if( selectString.trim().length ) query += selectString
+        else query += "`"+this.tableName+"`.*"
+        if( whereString.trim().length ) query += " WHERE " + whereString
+        console.log( query )
     }
 }
 
 const orm = new ORM("127.0.0.1", "devteam")
-orm.table("users").where("'`team`'.id", "5").get()
+orm.table("users").select("*", "id").get()
