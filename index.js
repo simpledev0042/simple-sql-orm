@@ -118,6 +118,37 @@ class ORM {
     }
     /**
      * 
+     * @param {Object} insert 
+     */
+    getInserttring(insert = {}) {
+        let res = ''
+        let colString = ''
+        let valueString = ''
+        let isFirst = true
+        for (const key in insert) {
+            if (Object.hasOwnProperty.call(insert, key)) {
+              const value = insert[key]
+              if (isFirst) {
+                colString += ' ('
+                valueString += ' VALUES ('
+              } else {
+                colString += ', '
+                valueString += ', '
+              }
+              colString += this.getColFullName(key)
+              valueString += `'${String(value).replace("'", "\\'")}'`
+              isFirst = false
+            }
+        }
+        if( isFirst == false ) {
+            colString += ')'
+            valueString += ')'
+        }
+        res = colString + valueString
+        return res
+    }
+    /**
+     * 
      * @param {String} str tableName.column
      */
     getColFullName( str ) {
@@ -265,17 +296,60 @@ class ORM {
         }    
         return this
     }
-
-    get(){
+    /**
+     * 
+     * @returns Array Records
+     */
+    async get() {
         let whereString = this.getWhereConditionString(this.#whereConditions)
         let selectString = this.getSelectString(this.#selectedCols)
         let query = "SELECT "
         if( selectString.trim().length ) query += selectString
         else query += "`"+this.tableName+"`.*"
+        query += " FROM " + "`"+this.tableName+"`"
         if( whereString.trim().length ) query += " WHERE " + whereString
-        console.log( query )
+        let res = await this.sequelize.query(query, QueryTypes.SELECT);
+        return res[0]
+    }
+    /**
+     * 
+     * @returns Integer Deleted row count
+     */
+    async delete(){
+        let whereString = this.getWhereConditionString(this.#whereConditions)
+        let query = "DELETE "
+        query += " FROM " + "`"+this.tableName+"`"
+        if( whereString.trim().length ) query += " WHERE " + whereString
+        let res = await this.sequelize.query(query, QueryTypes.DELETE);
+        return res[0].affectedRows
+    }
+
+    /**
+     * 
+     * @returns Integer row count
+     */
+    async count(){
+        let whereString = this.getWhereConditionString(this.#whereConditions)
+        let query = "SELECT COUNT(*) "
+        query += " FROM " + "`"+this.tableName+"`"
+        if( whereString.trim().length ) query += " WHERE " + whereString
+        let res = await this.sequelize.query(query, QueryTypes.SELECT);
+        return res[0].affectedRows
+    }
+    /**
+     * Update recods
+     * @param {Array} insert 
+     * @returns updated row count
+     */
+    async insert(insert){
+
+        let query = "INSERT INTO " + "`"+this.tableName+"`"
+        let inserttring = " " + this.getInserttring(insert)
+        query += inserttring
+        let res = await this.sequelize.query(query, QueryTypes.INSERT);
+        return {
+            totalRow: res[0],
+            inserted: res[1]
+        }
     }
 }
-
-const orm = new ORM("127.0.0.1", "devteam")
-orm.table("users").select("*", "id").get()
