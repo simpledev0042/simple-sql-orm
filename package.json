@@ -1,0 +1,16 @@
+{
+  "name": "simple-sql-orm",
+  "version": "1.0.0",
+  "description": "SQL ORM",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "blackhorse00042",
+  "license": "ISC",
+  "dependencies": {
+    "mysql2": "^3.0.1",
+    "sequelize": "^6.28.0",
+    "simple-libs": "^1.0.0"
+  }
+}
