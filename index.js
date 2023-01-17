@@ -40,7 +40,7 @@ class WhereCondition{
     }
 }
 
-class ORM {
+export default class ORM {
     #whereConditions
     #selectedCols
 
@@ -49,7 +49,7 @@ class ORM {
     static CONDITION_GROUP      = 'CONDITION_GROUP'
     static CONDITION_CONDITION  = 'CONDITION_CONDITION'
 
-    constructor(host, db, user="root", port = 3306, password=""){
+    constructor(host, db, user="root", password="", port = 3306){
         this.host = host
         this.db = db
         this.user = user
