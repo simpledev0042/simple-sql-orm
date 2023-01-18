@@ -54,4 +54,18 @@ orm.table("users").where("id", 5).delete()
 
 DELETE FROM `users` WHERE `users`.`id` = '5'
 
-return count result
+return count deleted
+
+### orderBy
+orm.table("users").where("id", 5).orderBy('id', 'asc').get()
+
+SELECT * FROM `users` WHERE `users`.`id` = '5' ORDER BY `users`.`id` ASC
+
+return data rows
+
+### groupBy
+orm.table("users").where("id", 5).groupBy('first_name').get()
+
+SELECT * FROM `users` WHERE `users`.`id` = '5' GROUP BY `users`.`id`
+
+return data rows
