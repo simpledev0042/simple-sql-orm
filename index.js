@@ -40,9 +40,11 @@ class WhereCondition{
     }
 }
 
-export default class ORM {
+class ORM {
     #whereConditions
     #selectedCols
+    #orders
+    #groupBy
 
     static CONDITION_AND        = 'CONDITION_AND'
     static CONDITION_OR         = 'CONDITION_OR'
@@ -58,6 +60,8 @@ export default class ORM {
         this.tableName = ""
         this.#whereConditions = []
         this.#selectedCols = [] // ["tablename.col", "tablename.col"...]
+        this.#orders = []
+        this.#groupBy = ""
         this.queryType = QueryTypes.RAW
 
         this.sequelize = new Sequelize(db, user, password, {
@@ -75,6 +79,9 @@ export default class ORM {
         this.tableName = ""
         while( this.#whereConditions.length ) this.#whereConditions.pop()
         while( this.#selectedCols.length ) this.#selectedCols.pop();
+        while( this.#orders.length ) this.#orders.pop();
+        this.#groupBy = ""
+        this.tableName = ""
     }
     /**
      * 
@@ -102,18 +109,30 @@ export default class ORM {
         }
         return res
     }
+
+    /**
+     * 
+     * @returns String
+     */
+
+    getWhereString(){
+        let whereString = this.getWhereConditionString(this.#whereConditions)
+        if( whereString.trim().length ) return " WHERE " + whereString
+        return ''
+    }
     /**
      * 
      * @param {Array} selects 
      */
     getSelectString(selects){
-        let res = ''
+        let res = 'SELECT '
         let n = selects.length
         for (let i = 0; i < n; i++) {
             if( i ) res += ", "
             const element = selects[i];
             res += this.getColFullName(element)
         }
+        if( n == 0 ) res += this.getColFullName("*")
         return res
     }
     /**
@@ -166,6 +185,32 @@ export default class ORM {
         }
         return res
     }
+
+    /**
+     * 
+     * @returns String
+     */
+
+    getOrderByString(){
+        let res = ''
+        for (let i = 0; i < this.#orders.length; i++) {
+            const element = this.#orders[i];
+            if(i == 0) res += " ORDER BY "
+            else res += ", "
+            res += this.getColFullName(element.col)
+            res += " "
+            res += element.dir.toUpperCase()
+        }
+        return res
+    }
+
+    getGroupByString(){
+        if( this.#groupBy && typeof this.#groupBy == 'string' && this.#groupBy.length ) {
+            return " GROUP BY " + this.getColFullName( this.#groupBy )
+        }
+        return ''
+    }
+
     /**
      * 
      * @param {String} str tableName.column
@@ -320,13 +365,11 @@ export default class ORM {
      * @returns Array Records
      */
     async get() {
-        let whereString = this.getWhereConditionString(this.#whereConditions)
-        let selectString = this.getSelectString(this.#selectedCols)
-        let query = "SELECT "
-        if( selectString.trim().length ) query += selectString
-        else query += "`"+this.tableName+"`.*"
+        let query = this.getSelectString(this.#selectedCols)
         query += " FROM " + "`"+this.tableName+"`"
-        if( whereString.trim().length ) query += " WHERE " + whereString
+        query += this.getWhereConditionString()
+        query += this.getGroupByString()
+        query += this.getOrderByString()
         let res = await this.sequelize.query(query, QueryTypes.SELECT);
         return res[0]
     }
@@ -348,10 +391,8 @@ export default class ORM {
      * @returns Integer row count
      */
     async count(){
-        let whereString = this.getWhereConditionString(this.#whereConditions)
         let query = "SELECT COUNT(*) "
         query += " FROM " + "`"+this.tableName+"`"
-        if( whereString.trim().length ) query += " WHERE " + whereString
         let res = await this.sequelize.query(query, QueryTypes.SELECT);
         return res[0].affectedRows
     }
@@ -385,4 +426,31 @@ export default class ORM {
         let res = await this.sequelize.query(query, QueryTypes.UPDATE);
         return res[0].changedRows
     }
+
+    /**
+     * 
+     * @param {String} col Ex. 'id'
+     * @param {String} dir Ex. 'asc' | 'desc'
+     * @returns ORM
+     */
+    orderBy(col = 'id', dir = 'asc'){
+        this.#orders.push({
+            col,
+            dir
+        })
+        return this
+    }
+
+    /**
+     * 
+     * @param {String} col Ex. 'first_name'
+     * @returns ORM
+     */
+
+    groupBy(col) {
+        this.#groupBy = col
+        return this
+    }
 }
+
+module.exports = { ORM }
