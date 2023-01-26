@@ -10,6 +10,10 @@ class WhereCondition{
     where(col, value, operator = '=') {
         if( col == -1 ) console.warn(`Bad Col name!`, col)
         else {
+            if(value instanceof Array){
+                operator = "IN"
+                value = `(${value.map(val => `'${val}'`).join(", ")})`
+            } 
             this.conditions.push({
                 data : {
                     col,
@@ -26,6 +30,10 @@ class WhereCondition{
     orWhere(col, value, operator = '=') {
         if( col == -1 ) console.warn(`Bad Col name!`, col)
         else {
+            if(value instanceof Array){
+                operator = "IN"
+                value = `(${value.map(val => `'${val}'`).join(", ")})`
+            } 
             this.conditions.push({
                 data : {
                     col,
@@ -45,6 +53,8 @@ class ORM {
     #selectedCols
     #orders
     #groupBy
+    #limit
+    #offset
 
     static CONDITION_AND        = 'CONDITION_AND'
     static CONDITION_OR         = 'CONDITION_OR'
@@ -63,7 +73,7 @@ class ORM {
         this.#orders = []
         this.#groupBy = ""
         this.queryType = QueryTypes.RAW
-
+        this.#init()
         this.sequelize = new Sequelize(db, user, password, {
             host: host,
             port: port,
@@ -82,6 +92,8 @@ class ORM {
         while( this.#orders.length ) this.#orders.pop();
         this.#groupBy = ""
         this.tableName = ""
+        this.#limit = -1
+        this.#offset = -1
     }
     /**
      * 
@@ -103,8 +115,14 @@ class ORM {
                 res += ")"
             }
             else {
-                element.data.value = String(element.data.value).replace("'", "\\'")
-                res += this.getColFullName(element.data.col) + " " + element.data.operator + " " + "'" + element.data.value + "'"
+                if( element.data.operator == 'IN' ) {
+                    res += this.getColFullName(element.data.col) + " " + element.data.operator + " " + element.data.value
+                }
+                else {
+                    element.data.value = String(element.data.value).replace("'", "\\'")
+                    res += this.getColFullName(element.data.col) + " " + element.data.operator + " " + "'" + element.data.value + "'"
+                }
+                
             }
         }
         return res
@@ -130,7 +148,13 @@ class ORM {
         for (let i = 0; i < n; i++) {
             if( i ) res += ", "
             const element = selects[i];
-            res += this.getColFullName(element)
+            if( element instanceof Array ) {
+                if( element.length == 2 ) {
+                    res += `${this.getColFullName(element[0])} AS \`${element[1]}\``
+                }
+                
+            }
+            else res += this.getColFullName(element)
         }
         if( n == 0 ) res += this.getColFullName("*")
         return res
@@ -217,6 +241,7 @@ class ORM {
      */
     getColFullName( str ) {
         let res = -1;
+        str = str.trim()
         const arr = str.split(".")
         if( arr.length == 1 ) {
             let col = arr[0].trim()
@@ -253,9 +278,16 @@ class ORM {
         this.queryType = QueryTypes.SELECT
         for (let i = 0; i < len; i++) {
             const element = arguments[i];
-            let fullName = this.getColFullName(element)
-            if( fullName == -1 ) console.warn(`Bad Col name!`, element)
-            else this.#selectedCols.push( element )
+            if(element instanceof Array) {
+                if( element.length == 2 ) this.#selectedCols.push( element )
+                else console.warn(`Bad Col name!`, element)
+            }
+            else {
+                let fullName = this.getColFullName(element)
+                if( fullName == -1 ) console.warn(`Bad Col name!`, element)
+                else this.#selectedCols.push( element )
+            }
+            
         }
         return this
     }
@@ -270,6 +302,10 @@ class ORM {
     where(col, value, operator = '=') {
         if( col == -1 ) console.warn(`Bad Col name!`, col)
         else {
+            if(value instanceof Array){
+                operator = "IN"
+                value = `(${value.map(val => `'${val}'`).join(", ")})`
+            } 
             this.#whereConditions.push({
                 data : {
                     col,
@@ -293,6 +329,10 @@ class ORM {
     orWhere(col, value, operator = '='){
         if( col == -1 ) console.warn(`Bad Col name!`, col)
         else {
+            if(value instanceof Array){
+                operator = "IN"
+                value = `(${value.map(val => `'${val}'`).join(", ")})`
+            } 
             this.#whereConditions.push({
                 data : {
                     col,
@@ -316,6 +356,10 @@ class ORM {
         let condition = new WhereCondition()
         if( col == -1 ) console.warn(`Bad Col name!`, col)
         else {
+            if(value instanceof Array){
+                operator = "IN"
+                value = `(${value.map(val => `'${val}'`).join(", ")})`
+            } 
             condition.conditions.push({
                 data : {
                     col,
@@ -367,9 +411,10 @@ class ORM {
     async get() {
         let query = this.getSelectString(this.#selectedCols)
         query += " FROM " + "`"+this.tableName+"`"
-        query += this.getWhereConditionString()
+        query += this.getWhereString(this.#whereConditions)
         query += this.getGroupByString()
         query += this.getOrderByString()
+        query += this.getLimitString()
         let res = await this.sequelize.query(query, QueryTypes.SELECT);
         return res[0]
     }
@@ -378,7 +423,7 @@ class ORM {
      * @returns Integer Deleted row count
      */
     async delete(){
-        let whereString = this.getWhereConditionString(this.#whereConditions)
+        let whereString = this.getWhereString()
         let query = "DELETE "
         query += " FROM " + "`"+this.tableName+"`"
         if( whereString.trim().length ) query += " WHERE " + whereString
@@ -420,8 +465,7 @@ class ORM {
         let query = "UPDATE " + "`"+this.tableName+"`"
         let updateString = this.getUpdateString(update)
         query += updateString
-        let whereString = this.getWhereConditionString(this.#whereConditions)
-        if( whereString.trim().length ) query += " WHERE " + whereString
+        query += this.getWhereString()
         // return query
         let res = await this.sequelize.query(query, QueryTypes.UPDATE);
         return res[0].changedRows
@@ -450,6 +494,78 @@ class ORM {
     groupBy(col) {
         this.#groupBy = col
         return this
+    }
+
+    /**
+     * limit select records
+     * @param {Number} n number of record
+     */
+    take(n = 10) {
+        this.#limit = n
+        return this
+    }
+
+    /**
+     * skip n of rows
+     * @param {Number} n number of skip
+     */
+    skip(n = 0) {
+        this.#offset = n
+        return this
+    }
+
+    getLimitString() {
+        if( this.#limit >= 0 && this.#offset >= 0 ) {
+            return ` LIMIT ${this.#offset}, ${this.#limit} `
+        }
+        else if( this.#limit >= 0 ) {
+            return ` LIMIT ${this.#offset} `
+        }
+        else return ''
+    }
+    
+    async max(col) {
+        let query = `SELECT MAX(${this.getColFullName(col)}) AS RES `
+        query += " FROM " + "`"+this.tableName+"`"
+        query += this.getWhereString()
+        query += this.getGroupByString()
+        query += this.getOrderByString()
+        query += this.getLimitString()
+        let res = await this.sequelize.query(query, QueryTypes.SELECT);
+        return res[0][0]["RES"]
+    }
+    
+    async min(col) {
+        let query = `SELECT MIN(${this.getColFullName(col)}) AS RES `
+        query += " FROM " + "`"+this.tableName+"`"
+        query += this.getWhereString()
+        query += this.getGroupByString()
+        query += this.getOrderByString()
+        query += this.getLimitString()
+        let res = await this.sequelize.query(query, QueryTypes.SELECT);
+        return res[0][0]["RES"]
+    }
+    
+    async avg(col) {
+        let query = `SELECT AVG(${this.getColFullName(col)}) AS RES `
+        query += " FROM " + "`"+this.tableName+"`"
+        query += this.getWhereString()
+        query += this.getGroupByString()
+        query += this.getOrderByString()
+        query += this.getLimitString()
+        let res = await this.sequelize.query(query, QueryTypes.SELECT);
+        return res[0][0]["RES"]
+    }
+    
+    async sum(col) {
+        let query = `SELECT SUM(${this.getColFullName(col)}) AS RES `
+        query += " FROM " + "`"+this.tableName+"`"
+        query += this.getWhereString()
+        query += this.getGroupByString()
+        query += this.getOrderByString()
+        query += this.getLimitString()
+        let res = await this.sequelize.query(query, QueryTypes.SELECT);
+        return res[0][0]["RES"]
     }
 }
 
