@@ -105,8 +105,14 @@ return data rows from 11th to 20th
 ##### min, max, avg, sum
 ```
 orm.table("users").max('id')
+```
+```
 orm.table("users").min('id')
+```
+```
 orm.table("users").avg('id')
+```
+```
 orm.table("users").sum('id')
 ```
 ```
