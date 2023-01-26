@@ -47,7 +47,7 @@ orm.table("users").where("id", ['5', '6']).get()
 SELECT * FROM `users` WHERE `users`.`id` IN ('5', '6')
 ```
 
-return count result
+return data rows
 
 ##### select
 ```
