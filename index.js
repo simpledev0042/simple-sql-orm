@@ -352,7 +352,7 @@ class ORM {
      * @param {String} operator  =, >, <, >=, <=, <>, BETWEEN, LIKE, IN
      * @returns WhereCondition
      */
-    static Where(col, value, operator = '=') {
+    static where(col, value, operator = '=') {
         let condition = new WhereCondition()
         if( col == -1 ) console.warn(`Bad Col name!`, col)
         else {
@@ -567,6 +567,20 @@ class ORM {
         let res = await this.sequelize.query(query, QueryTypes.SELECT);
         return res[0][0]["RES"]
     }
+
+    query = ( query = "",  type = QueryTypes.SELECT ) => new Promise((resolve, reject) => {
+        try {
+            this.sequelize.query(query, type).then( ( result ) => {
+                resolve( result );
+            }).catch( (err) => {
+                console.log(err);
+                reject(err);
+            });
+        } catch (err) {
+            console.log(err);
+            reject(err);
+        }
+    }) 
 }
 
-module.exports = { ORM }
+module.exports = { ORM, QueryTypes }

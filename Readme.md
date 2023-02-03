@@ -120,3 +120,37 @@ SELECT MAX(`users`.`id`) AS RES FROM `users`
 ```
 
 return value of RES
+
+#### raw query
+```
+{ ORM, QueryTypes } = require("simple-sql-orm")
+let orm = new ORM("localhost", "simply")
+const result = orm.query("SELECT * FROM `users`");
+const result = orm.query("SELECT * FROM `users`", QueryTypes.SELECT);
+
+```
+
+## Examples
+
+### Seprated query
+````
+let orm = new ORM("localhost", "simply")
+orm.table("users");
+const userids = ['simple', "orm"];
+const len = userids.length;
+for(let i = 0; i < len; i ++) {
+    orm.orWhere("userid", userids[i]);
+} 
+const res = orm.get();
+````
+```
+SELECT `users`.* FROM `users` WHERE `users`.`userid` = 'simple' OR `users`.`userid` = 'orm'
+```
+
+### Where
+```
+orm.table("users").where("firstname", "simple").and(ORM.where("id", 1, ">").where("id", 5, "<")).get()
+```
+```
+SELECT `users`.* FROM `users` WHERE `users`.`firstname` = 'simple' AND (`users`.`id` > '1' AND `users`.`id` < '5')
+```
